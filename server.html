@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dòng thời gian Lịch sử</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(120deg, #f0f4f8, #d9e2ec);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .timeline-wrapper {
+      position: relative;
+      width: 90%;
+      max-width: 1200px;
+      height: 80vh;
+      background-color: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+    }
+    .scroll-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .scroll-buttons button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 1.2em;
+    }
+    .timeline-scroll {
+      flex: 1;
+      position: relative;
+    }
+    .timeline-axis {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(to right, #007bff, #66b3ff);
+      transform: translateY(-50%);
+      z-index: 0;
+    }
+    .timeline-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    .milestone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      width: 200px;
+    }
+    .top-info {
+      position: absolute;
+      bottom: 50%;
+      transform: translateY(calc(-100% - 10px));
+      text-align: center;
+    }
+    .marker {
+      position: absolute;
+      bottom: 50%;
+      transform: translateY(50%);
+      width: 16px;
+      height: 16px;
+      background-color: #ff6f00;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      z-index: 2;
+    }
+    .bottom-info {
+      position: absolute;
+      top: 50%;
+      transform: translateY(10px);
+      text-align: center;
+    }
+    .content {
+      font-size: 1em;
+      font-weight: bold;
+      color: #333;
+      text-decoration: underline dotted;
+      cursor: pointer;
+    }
+    .content.important {
+      color: red;
+    }
+    .note {
+      margin-top: 8px;
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 10px;
+      border-radius: 8px;
+      font-style: italic;
+      display: none;
+    }
+    .note.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="timeline-wrapper">
+    <div class="scroll-buttons">
+      <button id="scroll-left">← Lùi</button>
+      <button id="scroll-right">Tiến →</button>
+    </div>
+    <div class="timeline-scroll">
+      <div class="timeline-axis"></div>
+      <div id="timeline-container" class="timeline-container"></div>
+    </div>
+  </div>
+
+  <script>
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTHLHO6tZoAQkWtgYZ8cicu4Oe3kVkDoHXbywuLk4zPfzMWH0bDRdqg8X-zzB9ZBF_V_PxDO-C70F7L/pub?output=csv';
+    const container = document.getElementById('timeline-container');
+    const itemsPerPage = 4;
+    let data = [], page = 0;
+
+    function render() {
+      container.innerHTML = '';
+      const start = page * itemsPerPage;
+      const end = start + itemsPerPage;
+      const pageData = data.slice(start, end);
+
+      pageData.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'milestone';
+        div.innerHTML = `
+          <div class="top-info">
+            <div class="location">${item.location}</div>
+            <div class="time">${item.timeString}</div>
+          </div>
+          <div class="marker"></div>
+          <div class="bottom-info">
+            <div class="content ${item.important ? 'important' : ''}">${item.contentText}</div>
+            <div class="note">${item.noteText}</div>
+          </div>
+        `;
+        div.querySelector('.content').onclick = () => {
+          div.querySelector('.note').classList.toggle('visible');
+        };
+        container.appendChild(div);
+      });
+    }
+
+    fetch(csvUrl)
+      .then(res => res.text())
+      .then(text => {
+        const [header, ...lines] = text.trim().split('\n');
+        const headers = header.split(',');
+        const gIdx = headers.indexOf('Group'), iIdx = headers.indexOf('Important');
+
+        data = lines.map(row => {
+          const cols = row.split(',');
+          const y = cols[0]?.trim(), m = cols[1]?.trim(), d = cols[2]?.trim();
+          const t = d ? `${d}/${m}/${y}` : m ? `${m}/${y}` : y;
+          return {
+            year: y,
+            month: m,
+            day: d,
+            timeString: t,
+            contentText: cols[4]?.trim(),
+            noteText: cols[5]?.trim(),
+            location: cols[6]?.trim(),
+            important: cols[iIdx]?.trim().toLowerCase() === 'true',
+          };
+        });
+        render();
+      });
+
+    document.getElementById('scroll-left').onclick = () => {
+      if (page > 0) { page--; render(); }
+    };
+    document.getElementById('scroll-right').onclick = () => {
+      if ((page + 1) * itemsPerPage < data.length) { page++; render(); }
+    };
+  </script>
+</body>
+</html>
